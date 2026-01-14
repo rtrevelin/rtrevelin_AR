@@ -52,6 +52,12 @@
             height: 100vh;
         }
 
+        #renderCanvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
         .hidden { display: none !important; }
     </style>
 </head>
@@ -68,9 +74,15 @@
 
     <!-- TELA AR -->
     <div id="ar-screen">
-        <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-        <script src="https://cdn.jsdelivr.net/npm/ar.js@3.4.5/three.js/ar.js"></script>
+        <canvas id="renderCanvas"></canvas>
     </div>
+
+    <!-- Babylon.js -->
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+
+    <!-- AR.js -->
+    <script src="https://cdn.jsdelivr.net/npm/ar.js@3.4.5/aframe/build/aframe-ar.js"></script>
 
     <script>
         const videoTest = document.getElementById('video-test');
@@ -78,6 +90,9 @@
         const btnAR = document.getElementById('btn-ar');
         const testScreen = document.getElementById('test-screen');
         const arScreen = document.getElementById('ar-screen');
+        const canvas = document.getElementById('renderCanvas');
+
+        let engine, scene, camera;
         let cameraStream = null;
 
         function testCamera() {
@@ -112,94 +127,59 @@
             testScreen.classList.add('hidden');
             arScreen.style.display = 'block';
 
-            // Iniciar AR.js
-            initAR();
+            // Inicializar Babylon.js
+            setTimeout(() => {
+                initBabylonAR();
+            }, 500);
         }
 
-        function initAR() {
-            // Cena Three.js
-            const scene = new THREE.Scene();
-            const camera = new THREE.Camera();
-            scene.add(camera);
+        function initBabylonAR() {
+            engine = new BABYLON.Engine(canvas, true);
+            scene = new BABYLON.Scene(engine);
 
-            const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setClearColor(0x000000, 0);
-            arScreen.appendChild(renderer.domElement);
+            // Câmera
+            camera = new BABYLON.UniversalCamera('camera', new BABYLON.Vector3(0, 0, -5), scene);
+            camera.attachControl(canvas, true);
+            camera.inertia = 0.7;
+            camera.angularSensibility = 1000;
 
-            // AR Toolkit
-            const arToolkitSource = new THREEx.ArToolkitSource({
-                sourceType: 'webcam'
-            });
+            // Luz ambiente
+            const ambientLight = new BABYLON.HemisphericLight('ambientLight', new BABYLON.Vector3(0, 1, 0), scene);
+            ambientLight.intensity = 0.8;
 
-            arToolkitSource.init(() => {
-                setTimeout(() => onWindowResize(), 2000);
-            });
+            // Luz direcional
+            const dirLight = new BABYLON.PointLight('pointLight', new BABYLON.Vector3(5, 5, 5), scene);
+            dirLight.intensity = 0.6;
 
-            window.addEventListener('resize', onWindowResize);
+            // Criar cubo
+            const box = BABYLON.MeshBuilder.CreateBox('box', { size: 1 }, scene);
+            box.position.y = 0;
 
-            function onWindowResize() {
-                arToolkitSource.onResize();
-                arToolkitSource.copySizeTo(renderer.domElement);
-                if (arToolkitContext.arController !== null) {
-                    arToolkitSource.copySizeTo(arToolkitContext.arController.canvas);
-                }
-            }
-
-            const arToolkitContext = new THREEx.ArToolkitContext({
-                cameraParametersUrl: 'https://cdn.jsdelivr.net/npm/ar.js@3.4.5/data/data/camera_para.dat',
-                detectionMode: 'mono',
-                sourceWidth: 640,
-                sourceHeight: 480
-            });
-
-            arToolkitContext.init(() => {
-                camera.projectionMatrix.copy(arToolkitContext.getProjectionMatrix());
-            });
-
-            // Marcador Hiro
-            const markerRoot = new THREE.Group();
-            scene.add(markerRoot);
-
-            const markerControls = new THREEx.ArMarkerControls(arToolkitContext, markerRoot, {
-                type: 'pattern',
-                patternUrl: 'https://cdn.jsdelivr.net/npm/ar.js@3.4.5/data/data/patt.hiro'
-            });
-
-            // Cubo 3D
-            const geometry = new THREE.BoxGeometry(1, 1, 1);
-            const material = new THREE.MeshPhongMaterial({
-                color: 0x00ffff,
-                emissive: 0x0088ff,
-                shininess: 100
-            });
-            const cube = new THREE.Mesh(geometry, material);
-            cube.position.z = 0.5;
-            markerRoot.add(cube);
-
-            // Luz
-            const light = new THREE.PointLight(0xffffff, 1);
-            light.position.set(5, 5, 5);
-            scene.add(light);
-
-            const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
-            scene.add(ambientLight);
+            // Material futurista
+            const material = new BABYLON.StandardMaterial('mat', scene);
+            material.emissiveColor = new BABYLON.Color3(0, 1, 1); // Cyan
+            material.specularColor = new BABYLON.Color3(0, 0.8, 1);
+            material.specularPower = 64;
+            material.alpha = 0.9;
+            box.material = material;
 
             // Animação
-            function animate() {
-                requestAnimationFrame(animate);
+            scene.registerBeforeRender(() => {
+                box.rotation.x += 0.01;
+                box.rotation.y += 0.01;
+            });
 
-                if (cube) {
-                    cube.rotation.x += 0.01;
-                    cube.rotation.y += 0.01;
-                }
+            // Render loop
+            engine.runRenderLoop(() => {
+                scene.render();
+            });
 
-                if (arToolkitSource.ready === false) return;
-                arToolkitContext.update(arToolkitSource.domElement);
-                renderer.render(scene, camera);
-            }
+            // Resize
+            window.addEventListener('resize', () => {
+                engine.resize();
+            });
 
-            animate();
+            console.log('Babylon.js AR iniciado');
         }
     </script>
 </body>

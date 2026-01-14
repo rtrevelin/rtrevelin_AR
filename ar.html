@@ -46,7 +46,7 @@
             border: 2px solid #00ffff;
             font-size: 12px;
             z-index: 50;
-            max-width: 250px;
+            max-width: 280px;
         }
 
         #status-ar {
@@ -78,6 +78,22 @@
         }
 
         #btn-back:hover { background: #ff0088; }
+
+        .debug-log {
+            position: fixed;
+            bottom: 80px;
+            right: 20px;
+            background: rgba(0, 20, 40, 0.9);
+            color: #00ff00;
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px solid #00ff00;
+            font-size: 10px;
+            max-width: 200px;
+            max-height: 150px;
+            overflow-y: auto;
+            z-index: 50;
+        }
     </style>
 </head>
 <body>
@@ -89,10 +105,12 @@
             <p><strong>🔮 Rtrevelin3dVR</strong></p>
             <p>Aponte para o marcador Hiro</p>
             <p id="marker-status" style="margin-top: 10px; color: #ffaa00;">Procurando marcador...</p>
+            <p id="ar-debug" style="margin-top: 10px; color: #0088ff; font-size: 10px;"></p>
         </div>
 
         <div id="status-ar">
             <p>Câmera: <span id="camera-status">Ativa</span></p>
+            <p>AR.js: <span id="arjs-status">Carregando...</span></p>
         </div>
 
         <button id="btn-back" onclick="voltarTeste()">← Voltar</button>
@@ -108,12 +126,22 @@
         const videoBg = document.getElementById('video-bg');
         const canvas = document.getElementById('canvas-ar');
         const markerStatusEl = document.getElementById('marker-status');
+        const arDebugEl = document.getElementById('ar-debug');
+        const arjsStatusEl = document.getElementById('arjs-status');
 
         let cameraStream = null;
         let arToolkitSource, arToolkitContext, scene, camera, renderer, markerRoot, cube;
+        let markerDetected = false;
+
+        function log(msg) {
+            console.log(msg);
+            arDebugEl.textContent = msg;
+        }
 
         // Inicializar câmera
         function initCamera() {
+            log('Acessando câmera...');
+
             navigator.mediaDevices.getUserMedia({
                 video: {
                     facingMode: 'environment',
@@ -125,15 +153,15 @@
             .then(stream => {
                 cameraStream = stream;
                 videoBg.srcObject = stream;
-                console.log('Câmera iniciada com sucesso');
+                log('Câmera OK');
 
                 // Iniciar AR após câmera estar pronta
                 setTimeout(() => {
                     initAR();
-                }, 1000);
+                }, 1500);
             })
             .catch(err => {
-                console.error('Erro ao acessar câmera:', err);
+                log('Erro câmera: ' + err.message);
                 markerStatusEl.textContent = '✗ Erro na câmera';
                 markerStatusEl.style.color = '#ff0055';
             });
@@ -141,6 +169,8 @@
 
         // Inicializar AR.js
         function initAR() {
+            log('Iniciando AR.js...');
+
             // Cena Three.js
             scene = new THREE.Scene();
             camera = new THREE.Camera();
@@ -160,9 +190,10 @@
             });
 
             arToolkitSource.init(() => {
+                log('ArToolkitSource OK');
                 setTimeout(() => {
                     onWindowResize();
-                }, 2000);
+                }, 1000);
             });
 
             window.addEventListener('resize', onWindowResize);
@@ -184,7 +215,10 @@
             });
 
             arToolkitContext.init(() => {
+                log('ArToolkitContext OK');
                 camera.projectionMatrix.copy(arToolkitContext.getProjectionMatrix());
+                arjsStatusEl.textContent = 'Pronto';
+                arjsStatusEl.style.color = '#00ff00';
             });
 
             // Marcador Hiro
@@ -195,6 +229,8 @@
                 type: 'pattern',
                 patternUrl: 'https://cdn.jsdelivr.net/npm/ar.js@3.4.5/data/data/patt.hiro'
             });
+
+            log('Marcador Hiro carregado');
 
             // Cubo 3D
             const geometry = new THREE.BoxGeometry(1, 1, 1);
@@ -244,8 +280,10 @@
             scene.add(ambientLight);
 
             // Animação
+            let frameCount = 0;
             function animate() {
                 requestAnimationFrame(animate);
+                frameCount++;
 
                 if (cube) {
                     cube.rotation.x += 0.01;
@@ -257,24 +295,34 @@
                 }
 
                 if (arToolkitSource.ready === false) return;
+
                 arToolkitContext.update(arToolkitSource.domElement);
+
+                // Debug a cada 60 frames
+                if (frameCount % 60 === 0) {
+                    if (markerRoot.visible) {
+                        if (!markerDetected) {
+                            markerDetected = true;
+                            markerStatusEl.textContent = '✓ Marcador detectado!';
+                            markerStatusEl.style.color = '#00ff00';
+                            log('Marcador encontrado!');
+                        }
+                    } else {
+                        if (markerDetected) {
+                            markerDetected = false;
+                            markerStatusEl.textContent = 'Procurando marcador...';
+                            markerStatusEl.style.color = '#ffaa00';
+                            log('Procurando marcador...');
+                        }
+                    }
+                }
+
                 renderer.render(scene, camera);
             }
 
             animate();
 
-            // Detectar marcador
-            markerRoot.addEventListener('markerFound', () => {
-                markerStatusEl.textContent = '✓ Marcador detectado!';
-                markerStatusEl.style.color = '#00ff00';
-            });
-
-            markerRoot.addEventListener('markerLost', () => {
-                markerStatusEl.textContent = 'Procurando marcador...';
-                markerStatusEl.style.color = '#ffaa00';
-            });
-
-            console.log('AR iniciado com sucesso');
+            log('AR iniciado!');
         }
 
         // Voltar para teste

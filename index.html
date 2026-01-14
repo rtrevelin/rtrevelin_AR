@@ -60,24 +60,13 @@
             width: 100vw;
             height: 100vh;
             position: relative;
-            overflow: hidden;
+            background: #000;
         }
 
-        #video-ar {
-            position: absolute;
-            top: 0;
-            left: 0;
+        canvas {
             width: 100%;
             height: 100%;
-            object-fit: cover;
-        }
-
-        #canvas-ar {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+            display: block;
         }
 
         #ar-info {
@@ -113,8 +102,7 @@
 
     <!-- TELA AR -->
     <div id="ar-screen">
-        <video id="video-ar" autoplay playsinline muted></video>
-        <canvas id="canvas-ar"></canvas>
+        <canvas id="renderCanvas"></canvas>
         <div id="ar-info">
             <p><strong>Rtrevelin3dVR</strong></p>
             <p>Aponte para o marcador Hiro</p>
@@ -129,15 +117,14 @@
 
     <script>
         const videoTest = document.getElementById('video-test');
-        const videoAR = document.getElementById('video-ar');
-        const canvasAR = document.getElementById('canvas-ar');
         const statusEl = document.getElementById('status');
         const btnAR = document.getElementById('btn-ar');
         const testScreen = document.getElementById('test-screen');
         const arScreen = document.getElementById('ar-screen');
+        const canvas = document.getElementById('renderCanvas');
 
         let cameraStream = null;
-        let arToolkitSource, arToolkitContext, scene, camera, renderer, markerRoot, cube;
+        let arToolkitSource, arToolkitContext, markerRoot, cube;
 
         function testCamera() {
             statusEl.textContent = 'Acessando câmera...';
@@ -163,42 +150,37 @@
         }
 
         function startAR() {
-            // Passar stream para vídeo AR
-            if (cameraStream) {
-                videoAR.srcObject = cameraStream;
-            }
-
             testScreen.classList.add('hidden');
             arScreen.style.display = 'block';
 
-            // Iniciar AR.js
             setTimeout(() => {
-                initARWithThree();
-            }, 1500);
+                initARScene();
+            }, 800);
         }
 
-        function initARWithThree() {
+        function initARScene() {
             // Cena Three.js
-            scene = new THREE.Scene();
-            camera = new THREE.Camera();
+            const scene = new THREE.Scene();
+            const camera = new THREE.Camera();
             scene.add(camera);
 
-            renderer = new THREE.WebGLRenderer({ 
-                canvas: canvasAR,
+            const renderer = new THREE.WebGLRenderer({ 
+                canvas: canvas,
                 antialias: true, 
                 alpha: true 
             });
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.setClearColor(0x000000, 0);
 
-            // AR Toolkit Source
+            // AR Toolkit Source - usar webcam
             arToolkitSource = new THREEx.ArToolkitSource({
-                sourceType: 'image',
-                sourceUrl: videoAR
+                sourceType: 'webcam'
             });
 
             arToolkitSource.init(() => {
-                setTimeout(() => onWindowResize(), 1000);
+                setTimeout(() => {
+                    onWindowResize();
+                }, 2000);
             });
 
             window.addEventListener('resize', onWindowResize);
@@ -243,6 +225,23 @@
             cube.position.z = 0.5;
             markerRoot.add(cube);
 
+            // Texto 3D
+            const canvas3d = document.createElement('canvas');
+            canvas3d.width = 512;
+            canvas3d.height = 256;
+            const ctx = canvas3d.getContext('2d');
+            ctx.fillStyle = '#00ffff';
+            ctx.font = 'bold 60px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('Rtrevelin3dVR', 256, 128);
+
+            const texture = new THREE.CanvasTexture(canvas3d);
+            const textMaterial = new THREE.MeshPhongMaterial({ map: texture });
+            const textGeometry = new THREE.PlaneGeometry(2, 1);
+            const textMesh = new THREE.Mesh(textGeometry, textMaterial);
+            textMesh.position.z = 1.2;
+            markerRoot.add(textMesh);
+
             // Luz
             const light = new THREE.PointLight(0xffffff, 1);
             light.position.set(5, 5, 5);
@@ -267,8 +266,9 @@
 
             animate();
 
-            console.log('AR.js iniciado com sucesso');
+            console.log('AR Scene iniciada com sucesso');
         }
     </script>
 </body>
 </html>
+

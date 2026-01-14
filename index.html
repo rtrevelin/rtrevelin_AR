@@ -137,8 +137,6 @@
         const arScene = document.getElementById('ar-scene');
         const arInfo = document.getElementById('ar-info');
 
-        let cameraStream = null;
-
         function testCamera() {
             statusEl.textContent = 'Acessando câmera...';
 
@@ -151,7 +149,6 @@
                 audio: false
             })
             .then(stream => {
-                cameraStream = stream;
                 videoTest.srcObject = stream;
                 statusEl.textContent = '✓ Câmera funcionando!';
                 btnAR.style.display = 'block';
@@ -163,12 +160,7 @@
         }
 
         function startAR() {
-            // Parar stream de teste
-            if (cameraStream) {
-                cameraStream.getTracks().forEach(track => track.stop());
-            }
-
-            // Mostrar AR
+            // NÃO parar o stream - deixar A-Frame usar a câmera
             testScreen.classList.add('hidden');
             arScene.classList.remove('hidden');
             arInfo.classList.remove('hidden');

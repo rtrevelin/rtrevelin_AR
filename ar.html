@@ -37,7 +37,7 @@
             border: 2px solid #00ffff;
             font-size: 12px;
             z-index: 50;
-            max-width: 280px;
+            max-width: 300px;
         }
 
         #status-ar {
@@ -50,6 +50,22 @@
             border-radius: 6px;
             border: 1px solid #00ffff;
             font-size: 11px;
+            z-index: 50;
+        }
+
+        #debug-console {
+            position: fixed;
+            bottom: 150px;
+            left: 20px;
+            background: rgba(0, 20, 40, 0.95);
+            color: #00ff00;
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px solid #00ff00;
+            font-size: 10px;
+            max-width: 250px;
+            max-height: 200px;
+            overflow-y: auto;
             z-index: 50;
         }
 
@@ -106,6 +122,7 @@
 
                 <!-- Modelo 3D GLB do GitHub -->
                 <a-entity 
+                    id="modelo-cubos"
                     gltf-model="url(https://raw.githubusercontent.com/rtrevelin/rtrevelin_AR/main/models/cubos.glb)"
                     position="0 0.5 0"
                     scale="1 1 1"
@@ -126,6 +143,12 @@
             <p>Câmera: <span id="camera-status">Ativa</span></p>
             <p>AR.js: <span id="arjs-status">Carregando...</span></p>
             <p>Modelo: <span id="model-status">Carregando...</span></p>
+            <p>Marcador: <span id="marker-detect">Procurando...</span></p>
+        </div>
+
+        <div id="debug-console">
+            <p><strong>Debug Log:</strong></p>
+            <div id="console-log"></div>
         </div>
 
         <img id="marker-preview-ar" src="https://raw.githubusercontent.com/AR-js-org/AR.js/master/data/images/hiro.png" alt="Marcador" title="Aponte para esta imagem">
@@ -143,14 +166,34 @@
         const arDebugEl = document.getElementById('ar-debug');
         const arjsStatusEl = document.getElementById('arjs-status');
         const modelStatusEl = document.getElementById('model-status');
+        const markerDetectEl = document.getElementById('marker-detect');
+        const consoleLogEl = document.getElementById('console-log');
         const nftMarker = document.getElementById('nft-marker');
+        const modeloEntity = document.getElementById('modelo-cubos');
 
         let cameraStream = null;
         let markerDetected = false;
+        let logs = [];
 
         function log(msg) {
-            console.log(msg);
-            arDebugEl.textContent = msg;
+            console.log('[DEBUG] ' + msg);
+            logs.push(msg);
+            consoleLogEl.innerHTML = logs.slice(-5).map(l => '<p>' + l + '</p>').join('');
+        }
+
+        // Interceptar erros de modelo
+        if (modeloEntity) {
+            modeloEntity.addEventListener('model-loaded', () => {
+                log('✓ Modelo GLB carregado com sucesso!');
+                modelStatusEl.textContent = 'Carregado ✓';
+                modelStatusEl.style.color = '#00ff00';
+            });
+
+            modeloEntity.addEventListener('error', (e) => {
+                log('✗ Erro ao carregar modelo: ' + e.message);
+                modelStatusEl.textContent = 'Erro ao carregar';
+                modelStatusEl.style.color = '#ff0055';
+            });
         }
 
         // Inicializar câmera
@@ -168,14 +211,12 @@
             .then(stream => {
                 cameraStream = stream;
                 videoBg.srcObject = stream;
-                log('Câmera OK - Aponte para o Hiro');
+                log('✓ Câmera OK');
                 arjsStatusEl.textContent = 'Pronto';
                 arjsStatusEl.style.color = '#00ff00';
-                modelStatusEl.textContent = 'Carregado';
-                modelStatusEl.style.color = '#00ff00';
             })
             .catch(err => {
-                log('Erro câmera: ' + err.message);
+                log('✗ Erro câmera: ' + err.message);
                 markerStatusEl.textContent = '✗ Erro na câmera';
                 markerStatusEl.style.color = '#ff0055';
             });
@@ -187,14 +228,18 @@
                 markerDetected = true;
                 markerStatusEl.textContent = '✓ Marcador detectado!';
                 markerStatusEl.style.color = '#00ff00';
-                log('Marcador encontrado! Cubos aparecendo...');
+                markerDetectEl.textContent = 'Detectado ✓';
+                markerDetectEl.style.color = '#00ff00';
+                log('✓ Marcador Hiro encontrado!');
             });
 
             nftMarker.addEventListener('markerLost', () => {
                 markerDetected = false;
                 markerStatusEl.textContent = 'Procurando marcador...';
                 markerStatusEl.style.color = '#ffaa00';
-                log('Procurando marcador...');
+                markerDetectEl.textContent = 'Procurando...';
+                markerDetectEl.style.color = '#ffaa00';
+                log('Marcador perdido');
             });
         }
 
@@ -209,8 +254,14 @@
         // Iniciar quando página carregar
         window.addEventListener('load', () => {
             setTimeout(() => {
+                log('Página carregada');
                 initCamera();
             }, 500);
+        });
+
+        // Interceptar erros globais
+        window.addEventListener('error', (e) => {
+            log('✗ Erro global: ' + e.message);
         });
     </script>
 </body>

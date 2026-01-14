@@ -3,70 +3,54 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <meta http-equiv="Permissions-Policy" content="camera=*">
     <title>Rtrevelin3dVR - AR Experience</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { background: #000; font-family: Arial, sans-serif; overflow: hidden; }
+        body { background: #000; font-family: Arial, sans-serif; }
 
         #ar-container {
             width: 100vw;
             height: 100vh;
             position: relative;
             background: #000;
-            overflow: hidden;
         }
 
-        #video-bg {
-            position: absolute;
-            top: 0;
-            left: 0;
+        #video-stream {
             width: 100%;
             height: 100%;
             object-fit: cover;
-            z-index: 1;
+            display: block;
         }
 
-        #ar-info {
+        #status-box {
             position: fixed;
             top: 20px;
             left: 20px;
-            background: rgba(0, 20, 40, 0.95);
+            background: rgba(0, 20, 40, 0.98);
             color: #00ffff;
-            padding: 15px;
+            padding: 20px;
             border-radius: 8px;
             border: 2px solid #00ffff;
-            font-size: 12px;
+            font-size: 13px;
             z-index: 50;
-            max-width: 300px;
+            max-width: 320px;
         }
 
-        #status-ar {
-            position: fixed;
-            bottom: 20px;
-            left: 20px;
-            background: rgba(0, 20, 40, 0.95);
-            color: #00ffff;
-            padding: 10px 15px;
-            border-radius: 6px;
-            border: 1px solid #00ffff;
+        #status-box p {
+            margin: 8px 0;
+        }
+
+        .status-ok { color: #00ff00; font-weight: bold; }
+        .status-error { color: #ff0055; font-weight: bold; }
+        .status-waiting { color: #ffaa00; font-weight: bold; }
+
+        #debug-section {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #00ffff;
             font-size: 11px;
-            z-index: 50;
-        }
-
-        #debug-console {
-            position: fixed;
-            bottom: 150px;
-            left: 20px;
-            background: rgba(0, 20, 40, 0.95);
-            color: #00ff00;
-            padding: 10px;
-            border-radius: 6px;
-            border: 1px solid #00ff00;
-            font-size: 10px;
-            max-width: 250px;
-            max-height: 200px;
-            overflow-y: auto;
-            z-index: 50;
+            color: #0088ff;
         }
 
         #btn-back {
@@ -86,7 +70,7 @@
 
         #btn-back:hover { background: #ff0088; }
 
-        #marker-preview-ar {
+        #marker-preview {
             position: fixed;
             bottom: 20px;
             right: 20px;
@@ -98,11 +82,21 @@
             z-index: 50;
             object-fit: cover;
         }
+
+        #ar-scene {
+            width: 100%;
+            height: 100%;
+        }
+
+        .hidden {
+            display: none !important;
+        }
     </style>
 </head>
 <body>
+    <!-- Container AR -->
     <div id="ar-container">
-        <video id="video-bg" autoplay playsinline muted></video>
+        <video id="video-stream" autoplay playsinline muted></video>
 
         <a-scene 
             id="ar-scene"
@@ -111,47 +105,35 @@
 
             <a-camera position="0 0 0"></a-camera>
 
-            <!-- Marcador Hiro do GitHub -->
+            <!-- Marcador padrão AR.js -->
             <a-nft 
                 type="nft" 
                 url="https://cdn.jsdelivr.net/npm/ar.js@3.4.5/data/data/patt"
-                scale="1 1 1"
-                position="0 0 0"
-                rotation="0 0 0"
                 id="nft-marker">
 
-                <!-- Modelo 3D GLB do GitHub -->
-                <a-entity 
-                    id="modelo-cubos"
-                    gltf-model="url(https://raw.githubusercontent.com/rtrevelin/rtrevelin_AR/main/models/cubos.glb)"
+                <!-- CUBO TESTE -->
+                <a-box 
+                    color="#00ffff" 
                     position="0 0.5 0"
-                    scale="1 1 1"
+                    scale="0.8 0.8 0.8"
                     animation="property: rotation; to: 0 360 0; loop: true; dur: 3000;">
-                </a-entity>
+                </a-box>
 
             </a-nft>
         </a-scene>
 
-        <div id="ar-info">
+        <div id="status-box">
             <p><strong>🔮 Rtrevelin3dVR</strong></p>
-            <p>Aponte para o marcador Hiro</p>
-            <p id="marker-status" style="margin-top: 10px; color: #ffaa00;">Procurando marcador...</p>
-            <p id="ar-debug" style="margin-top: 10px; color: #0088ff; font-size: 10px;"></p>
+            <p>Status: <span id="main-status" class="status-waiting">Iniciando...</span></p>
+            <p>Câmera: <span id="camera-status" class="status-waiting">Ativando...</span></p>
+            <p>Marcador: <span id="marker-status" class="status-waiting">Procurando...</span></p>
+
+            <div id="debug-section">
+                <p id="debug-msg">Carregando...</p>
+            </div>
         </div>
 
-        <div id="status-ar">
-            <p>Câmera: <span id="camera-status">Ativa</span></p>
-            <p>AR.js: <span id="arjs-status">Carregando...</span></p>
-            <p>Modelo: <span id="model-status">Carregando...</span></p>
-            <p>Marcador: <span id="marker-detect">Procurando...</span></p>
-        </div>
-
-        <div id="debug-console">
-            <p><strong>Debug Log:</strong></p>
-            <div id="console-log"></div>
-        </div>
-
-        <img id="marker-preview-ar" src="https://raw.githubusercontent.com/rtrevelin/rtrevelin_AR/main/markers/hiro.png" alt="Marcador Hiro" title="Aponte para esta imagem">
+        <img id="marker-preview" src="https://raw.githubusercontent.com/AR-js-org/AR.js/master/data/images/hiro.png" alt="Marcador Hiro">
 
         <button id="btn-back" onclick="voltarTeste()">← Voltar</button>
     </div>
@@ -161,89 +143,92 @@
     <script src="https://cdn.jsdelivr.net/npm/ar.js@3.4.5/aframe/build/aframe-ar.js"></script>
 
     <script>
-        const videoBg = document.getElementById('video-bg');
+        const videoStream = document.getElementById('video-stream');
+        const mainStatusEl = document.getElementById('main-status');
+        const cameraStatusEl = document.getElementById('camera-status');
         const markerStatusEl = document.getElementById('marker-status');
-        const arDebugEl = document.getElementById('ar-debug');
-        const arjsStatusEl = document.getElementById('arjs-status');
-        const modelStatusEl = document.getElementById('model-status');
-        const markerDetectEl = document.getElementById('marker-detect');
-        const consoleLogEl = document.getElementById('console-log');
+        const debugMsgEl = document.getElementById('debug-msg');
         const nftMarker = document.getElementById('nft-marker');
-        const modeloEntity = document.getElementById('modelo-cubos');
 
         let cameraStream = null;
-        let markerDetected = false;
-        let logs = [];
 
         function log(msg) {
             console.log('[DEBUG] ' + msg);
-            logs.push(msg);
-            consoleLogEl.innerHTML = logs.slice(-5).map(l => '<p>' + l + '</p>').join('');
+            debugMsgEl.textContent = msg;
         }
 
-        // Interceptar erros de modelo
-        if (modeloEntity) {
-            modeloEntity.addEventListener('model-loaded', () => {
-                log('✓ Modelo GLB carregado com sucesso!');
-                modelStatusEl.textContent = 'Carregado ✓';
-                modelStatusEl.style.color = '#00ff00';
-            });
+        // Inicializar câmera ao carregar
+        window.addEventListener('load', () => {
+            log('Página carregada. Ativando câmera...');
+            setTimeout(() => {
+                initCamera();
+            }, 500);
+        });
 
-            modeloEntity.addEventListener('error', (e) => {
-                log('✗ Erro ao carregar modelo: ' + e.message);
-                modelStatusEl.textContent = 'Erro ao carregar';
-                modelStatusEl.style.color = '#ff0055';
-            });
-        }
+        async function initCamera() {
+            try {
+                log('Solicitando acesso à câmera...');
 
-        // Inicializar câmera
-        function initCamera() {
-            log('Acessando câmera...');
+                const constraints = {
+                    video: {
+                        facingMode: { ideal: 'environment' },
+                        width: { ideal: 1280 },
+                        height: { ideal: 720 }
+                    },
+                    audio: false
+                };
 
-            navigator.mediaDevices.getUserMedia({
-                video: {
-                    facingMode: 'environment',
-                    width: { ideal: 1280 },
-                    height: { ideal: 720 }
-                },
-                audio: false
-            })
-            .then(stream => {
-                cameraStream = stream;
-                videoBg.srcObject = stream;
-                log('✓ Câmera OK');
-                arjsStatusEl.textContent = 'Pronto';
-                arjsStatusEl.style.color = '#00ff00';
-            })
-            .catch(err => {
-                log('✗ Erro câmera: ' + err.message);
-                markerStatusEl.textContent = '✗ Erro na câmera';
-                markerStatusEl.style.color = '#ff0055';
-            });
+                cameraStream = await navigator.mediaDevices.getUserMedia(constraints);
+
+                log('✓ Câmera autorizada!');
+                videoStream.srcObject = cameraStream;
+
+                cameraStatusEl.textContent = 'Ativa ✓';
+                cameraStatusEl.className = 'status-ok';
+
+                mainStatusEl.textContent = 'Pronto ✓';
+                mainStatusEl.className = 'status-ok';
+
+                log('Aponte para o marcador Hiro');
+
+            } catch (error) {
+                log('✗ Erro: ' + error.name + ' - ' + error.message);
+
+                cameraStatusEl.textContent = 'Erro ✗';
+                cameraStatusEl.className = 'status-error';
+
+                mainStatusEl.textContent = 'Erro ✗';
+                mainStatusEl.className = 'status-error';
+
+                console.error('Erro completo:', error);
+
+                // Mostrar dica de solução
+                if (error.name === 'NotAllowedError') {
+                    log('⚠️ Permissão negada. Autorize a câmera no navegador.');
+                } else if (error.name === 'NotFoundError') {
+                    log('⚠️ Câmera não encontrada no dispositivo.');
+                } else if (error.name === 'NotReadableError') {
+                    log('⚠️ Câmera em uso por outro app. Feche-o.');
+                }
+            }
         }
 
         // Detectar marcador
         if (nftMarker) {
             nftMarker.addEventListener('markerFound', () => {
-                markerDetected = true;
-                markerStatusEl.textContent = '✓ Marcador detectado!';
-                markerStatusEl.style.color = '#00ff00';
-                markerDetectEl.textContent = 'Detectado ✓';
-                markerDetectEl.style.color = '#00ff00';
-                log('✓ Marcador Hiro encontrado!');
+                markerStatusEl.textContent = 'Detectado ✓';
+                markerStatusEl.className = 'status-ok';
+                log('✓ Marcador Hiro encontrado! Cubo aparecendo...');
             });
 
             nftMarker.addEventListener('markerLost', () => {
-                markerDetected = false;
-                markerStatusEl.textContent = 'Procurando marcador...';
-                markerStatusEl.style.color = '#ffaa00';
-                markerDetectEl.textContent = 'Procurando...';
-                markerDetectEl.style.color = '#ffaa00';
-                log('Marcador perdido');
+                markerStatusEl.textContent = 'Procurando...';
+                markerStatusEl.className = 'status-waiting';
+                log('Marcador perdido. Procurando...');
             });
         }
 
-        // Voltar para teste
+        // Voltar
         function voltarTeste() {
             if (cameraStream) {
                 cameraStream.getTracks().forEach(track => track.stop());
@@ -251,17 +236,15 @@
             window.location.href = 'index.html';
         }
 
-        // Iniciar quando página carregar
+        // Verificar suporte
         window.addEventListener('load', () => {
-            setTimeout(() => {
-                log('Página carregada');
-                initCamera();
-            }, 500);
-        });
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                log('✗ Navegador não suporta acesso à câmera');
+            }
 
-        // Interceptar erros globais
-        window.addEventListener('error', (e) => {
-            log('✗ Erro global: ' + e.message);
+            if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
+                log('⚠️ HTTPS recomendado para câmera');
+            }
         });
     </script>
 </body>

@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Rtrevelin3dVR - AR Experience</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #000; font-family: Arial, sans-serif; overflow: hidden; }
+
+        #ar-container {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+            background: #000;
+            overflow: hidden;
+        }
+
+        #video-bg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            z-index: 1;
+        }
+
+        #ar-scene {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 2;
+        }
+
+        #ar-info {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 20, 40, 0.95);
+            color: #00ffff;
+            padding: 15px;
+            border-radius: 8px;
+            border: 2px solid #00ffff;
+            font-size: 12px;
+            z-index: 50;
+            max-width: 250px;
+        }
+
+        #status-ar {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0, 20, 40, 0.95);
+            color: #00ffff;
+            padding: 10px 15px;
+            border-radius: 6px;
+            border: 1px solid #00ffff;
+            font-size: 11px;
+            z-index: 50;
+        }
+
+        #btn-back {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 10px 20px;
+            background: #ff0055;
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+            z-index: 50;
+            font-size: 14px;
+        }
+
+        #btn-back:hover { background: #ff0088; }
+    </style>
+</head>
+<body>
+    <div id="ar-container">
+        <video id="video-bg" autoplay playsinline muted></video>
+
+        <a-scene 
+            id="ar-scene"
+            embedded 
+            arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono;">
+
+            <a-camera position="0 0 0"></a-camera>
+
+            <!-- Marcador Hiro -->
+            <a-marker preset="hiro" id="marker">
+                <!-- Cubo Principal -->
+                <a-box 
+                    id="cube"
+                    color="#00ffff" 
+                    position="0 0.5 0"
+                    scale="0.8 0.8 0.8"
+                    animation="property: rotation; to: 0 360 0; loop: true; dur: 3000;">
+                </a-box>
+
+                <!-- Esfera de Luz -->
+                <a-sphere 
+                    position="0 1.5 0" 
+                    radius="0.3" 
+                    color="#0088ff"
+                    animation="property: position; to: 0 1.8 0; loop: true; dur: 2000; dir: alternate;">
+                </a-sphere>
+
+                <!-- Texto Principal -->
+                <a-text 
+                    value="Rtrevelin3dVR" 
+                    position="0 2 0" 
+                    scale="0.6 0.6 0.6"
+                    color="#00ffff"
+                    align="center"
+                    font="https://cdn.aframe.io/fonts/Roboto-msdf.json">
+                </a-text>
+
+                <!-- Cilindro de Suporte -->
+                <a-cylinder 
+                    position="0 0 0" 
+                    radius="0.5" 
+                    height="0.1" 
+                    color="#0044ff"
+                    opacity="0.6">
+                </a-cylinder>
+            </a-marker>
+        </a-scene>
+
+        <div id="ar-info">
+            <p><strong>🔮 Rtrevelin3dVR</strong></p>
+            <p>Aponte para o marcador Hiro</p>
+            <p id="marker-status" style="margin-top: 10px; color: #ffaa00;">Procurando marcador...</p>
+        </div>
+
+        <div id="status-ar">
+            <p>Câmera: <span id="camera-status">Ativa</span></p>
+        </div>
+
+        <button id="btn-back" onclick="voltarTeste()">← Voltar</button>
+    </div>
+
+    <!-- A-Frame + AR.js (versão oficial) -->
+    <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/ar.js@3.4.5/aframe/build/aframe-ar.js"></script>
+
+    <script>
+        const videoBg = document.getElementById('video-bg');
+        const markerStatusEl = document.getElementById('marker-status');
+        const marker = document.getElementById('marker');
+
+        let cameraStream = null;
+
+        // Inicializar câmera
+        function initCamera() {
+            navigator.mediaDevices.getUserMedia({
+                video: {
+                    facingMode: 'environment',
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 }
+                },
+                audio: false
+            })
+            .then(stream => {
+                cameraStream = stream;
+                videoBg.srcObject = stream;
+                console.log('Câmera iniciada com sucesso');
+            })
+            .catch(err => {
+                console.error('Erro ao acessar câmera:', err);
+                markerStatusEl.textContent = '✗ Erro na câmera';
+                markerStatusEl.style.color = '#ff0055';
+            });
+        }
+
+        // Detectar marcador
+        if (marker) {
+            marker.addEventListener('markerFound', () => {
+                markerStatusEl.textContent = '✓ Marcador detectado!';
+                markerStatusEl.style.color = '#00ff00';
+            });
+
+            marker.addEventListener('markerLost', () => {
+                markerStatusEl.textContent = 'Procurando marcador...';
+                markerStatusEl.style.color = '#ffaa00';
+            });
+        }
+
+        // Voltar para teste
+        function voltarTeste() {
+            if (cameraStream) {
+                cameraStream.getTracks().forEach(track => track.stop());
+            }
+            window.location.href = 'index.html';
+        }
+
+        // Iniciar quando página carregar
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                initCamera();
+            }, 500);
+        });
+    </script>
+</body>
+</html>

@@ -1,1 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Rtrevelin3dVR - AR Test</title>
+    <style>
+        * { margin: 0; padding: 0; }
+        body { background: #000; font-family: Arial; }
+        #status { position: fixed; top: 20px; left: 20px; background: rgba(0,20,40,0.95); color: #00ffff; padding: 15px; border-radius: 8px; border: 2px solid #00ffff; z-index: 50; }
+        #btn-back { position: fixed; top: 20px; right: 20px; padding: 10px 20px; background: #ff0055; color: #fff; border: none; border-radius: 6px; cursor: pointer; z-index: 50; }
+    </style>
+</head>
+<body>
+    <div id="status">
+        <p><strong>🔮 Rtrevelin3dVR - TESTE</strong></p>
+        <p id="msg">Carregando...</p>
+    </div>
+
+    <button id="btn-back" onclick="window.location.href='index.html'">← Voltar</button>
+
+    <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false;">
+        <a-camera position="0 0 0"></a-camera>
+
+        <!-- Marcador padrão AR.js -->
+        <a-nft 
+            type="nft" 
+            url="https://cdn.jsdelivr.net/npm/ar.js@3.4.5/data/data/patt"
+            id="marker">
+
+            <!-- CUBO SIMPLES (teste) -->
+            <a-box 
+                color="#00ffff" 
+                position="0 0.5 0"
+                scale="0.8 0.8 0.8"
+                animation="property: rotation; to: 0 360 0; loop: true; dur: 3000;">
+            </a-box>
+
+        </a-nft>
+    </a-scene>
+
+    <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/ar.js@3.4.5/aframe/build/aframe-ar.js"></script>
+
+    <script>
+        const marker = document.getElementById('marker');
+        const msg = document.getElementById('msg');
+
+        marker.addEventListener('markerFound', () => {
+            msg.textContent = '✓ Marcador detectado! Cubo aparecendo...';
+            msg.style.color = '#00ff00';
+        });
+
+        marker.addEventListener('markerLost', () => {
+            msg.textContent = 'Procurando marcador...';
+            msg.style.color = '#ffaa00';
+        });
+
+        window.addEventListener('load', () => {
+            msg.textContent = '✓ Pronto! Aponte para o Hiro';
+            msg.style.color = '#00ff00';
+        });
+    </script>
+</body>
+</html>
 

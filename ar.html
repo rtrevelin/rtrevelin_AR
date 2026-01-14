@@ -26,15 +26,6 @@
             z-index: 1;
         }
 
-        #canvas-ar {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            z-index: 2;
-        }
-
         #ar-info {
             position: fixed;
             top: 20px;
@@ -79,31 +70,79 @@
 
         #btn-back:hover { background: #ff0088; }
 
-        .debug-log {
+        #marker-preview-ar {
             position: fixed;
-            bottom: 80px;
+            bottom: 20px;
             right: 20px;
-            background: rgba(0, 20, 40, 0.9);
-            color: #00ff00;
-            padding: 10px;
-            border-radius: 6px;
-            border: 1px solid #00ff00;
-            font-size: 10px;
-            max-width: 200px;
-            max-height: 150px;
-            overflow-y: auto;
+            width: 150px;
+            height: 150px;
+            border: 2px solid #00ffff;
+            border-radius: 8px;
+            background: #000;
             z-index: 50;
+            object-fit: cover;
         }
     </style>
 </head>
 <body>
     <div id="ar-container">
         <video id="video-bg" autoplay playsinline muted></video>
-        <canvas id="canvas-ar"></canvas>
+
+        <a-scene 
+            id="ar-scene"
+            embedded 
+            arjs="sourceType: webcam; debugUIEnabled: false; detectionMode: mono;">
+
+            <a-camera position="0 0 0"></a-camera>
+
+            <!-- Image Tracking (NFT) -->
+            <a-nft 
+                type="nft" 
+                url="https://cdn.jsdelivr.net/npm/ar.js@3.4.5/data/data/patt"
+                scale="1 1 1"
+                position="0 0 0"
+                rotation="0 0 0"
+                id="nft-marker">
+
+                <!-- Cubo -->
+                <a-box 
+                    color="#00ffff" 
+                    position="0 0.5 0"
+                    scale="0.8 0.8 0.8"
+                    animation="property: rotation; to: 0 360 0; loop: true; dur: 3000;">
+                </a-box>
+
+                <!-- Esfera -->
+                <a-sphere 
+                    position="0 1.5 0" 
+                    radius="0.3" 
+                    color="#0088ff"
+                    animation="property: position; to: 0 1.8 0; loop: true; dur: 2000; dir: alternate;">
+                </a-sphere>
+
+                <!-- Texto -->
+                <a-text 
+                    value="Rtrevelin3dVR" 
+                    position="0 2 0" 
+                    scale="0.6 0.6 0.6"
+                    color="#00ffff"
+                    align="center">
+                </a-text>
+
+                <!-- Cilindro -->
+                <a-cylinder 
+                    position="0 0 0" 
+                    radius="0.5" 
+                    height="0.1" 
+                    color="#0044ff"
+                    opacity="0.6">
+                </a-cylinder>
+            </a-nft>
+        </a-scene>
 
         <div id="ar-info">
             <p><strong>🔮 Rtrevelin3dVR</strong></p>
-            <p>Aponte para o marcador Hiro</p>
+            <p>Aponte para a imagem marcadora</p>
             <p id="marker-status" style="margin-top: 10px; color: #ffaa00;">Procurando marcador...</p>
             <p id="ar-debug" style="margin-top: 10px; color: #0088ff; font-size: 10px;"></p>
         </div>
@@ -113,24 +152,23 @@
             <p>AR.js: <span id="arjs-status">Carregando...</span></p>
         </div>
 
+        <img id="marker-preview-ar" src="https://raw.githubusercontent.com/AR-js-org/AR.js/master/data/images/hiro.png" alt="Marcador" title="Aponte para esta imagem">
+
         <button id="btn-back" onclick="voltarTeste()">← Voltar</button>
     </div>
 
-    <!-- Three.js -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-
-    <!-- AR.js -->
-    <script src="https://cdn.jsdelivr.net/npm/ar.js@3.4.5/three.js/ar.js"></script>
+    <!-- A-Frame + AR.js -->
+    <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/ar.js@3.4.5/aframe/build/aframe-ar.js"></script>
 
     <script>
         const videoBg = document.getElementById('video-bg');
-        const canvas = document.getElementById('canvas-ar');
         const markerStatusEl = document.getElementById('marker-status');
         const arDebugEl = document.getElementById('ar-debug');
         const arjsStatusEl = document.getElementById('arjs-status');
+        const nftMarker = document.getElementById('nft-marker');
 
         let cameraStream = null;
-        let arToolkitSource, arToolkitContext, scene, camera, renderer, markerRoot, cube;
         let markerDetected = false;
 
         function log(msg) {
@@ -153,12 +191,9 @@
             .then(stream => {
                 cameraStream = stream;
                 videoBg.srcObject = stream;
-                log('Câmera OK');
-
-                // Iniciar AR após câmera estar pronta
-                setTimeout(() => {
-                    initAR();
-                }, 1500);
+                log('Câmera OK - Aponte para o marcador');
+                arjsStatusEl.textContent = 'Pronto';
+                arjsStatusEl.style.color = '#00ff00';
             })
             .catch(err => {
                 log('Erro câmera: ' + err.message);
@@ -167,162 +202,21 @@
             });
         }
 
-        // Inicializar AR.js
-        function initAR() {
-            log('Iniciando AR.js...');
-
-            // Cena Three.js
-            scene = new THREE.Scene();
-            camera = new THREE.Camera();
-            scene.add(camera);
-
-            renderer = new THREE.WebGLRenderer({ 
-                canvas: canvas,
-                antialias: true, 
-                alpha: true 
-            });
-            renderer.setSize(window.innerWidth, window.innerHeight);
-            renderer.setClearColor(0x000000, 0);
-
-            // AR Toolkit Source
-            arToolkitSource = new THREEx.ArToolkitSource({
-                sourceType: 'webcam'
+        // Detectar marcador
+        if (nftMarker) {
+            nftMarker.addEventListener('markerFound', () => {
+                markerDetected = true;
+                markerStatusEl.textContent = '✓ Marcador detectado!';
+                markerStatusEl.style.color = '#00ff00';
+                log('Marcador encontrado!');
             });
 
-            arToolkitSource.init(() => {
-                log('ArToolkitSource OK');
-                setTimeout(() => {
-                    onWindowResize();
-                }, 1000);
+            nftMarker.addEventListener('markerLost', () => {
+                markerDetected = false;
+                markerStatusEl.textContent = 'Procurando marcador...';
+                markerStatusEl.style.color = '#ffaa00';
+                log('Procurando marcador...');
             });
-
-            window.addEventListener('resize', onWindowResize);
-
-            function onWindowResize() {
-                arToolkitSource.onResize();
-                arToolkitSource.copySizeTo(renderer.domElement);
-                if (arToolkitContext && arToolkitContext.arController !== null) {
-                    arToolkitSource.copySizeTo(arToolkitContext.arController.canvas);
-                }
-            }
-
-            // AR Toolkit Context
-            arToolkitContext = new THREEx.ArToolkitContext({
-                cameraParametersUrl: 'https://cdn.jsdelivr.net/npm/ar.js@3.4.5/data/data/camera_para.dat',
-                detectionMode: 'mono',
-                sourceWidth: 640,
-                sourceHeight: 480
-            });
-
-            arToolkitContext.init(() => {
-                log('ArToolkitContext OK');
-                camera.projectionMatrix.copy(arToolkitContext.getProjectionMatrix());
-                arjsStatusEl.textContent = 'Pronto';
-                arjsStatusEl.style.color = '#00ff00';
-            });
-
-            // Marcador Hiro
-            markerRoot = new THREE.Group();
-            scene.add(markerRoot);
-
-            const markerControls = new THREEx.ArMarkerControls(arToolkitContext, markerRoot, {
-                type: 'pattern',
-                patternUrl: 'https://cdn.jsdelivr.net/npm/ar.js@3.4.5/data/data/patt.hiro'
-            });
-
-            log('Marcador Hiro carregado');
-
-            // Cubo 3D
-            const geometry = new THREE.BoxGeometry(1, 1, 1);
-            const material = new THREE.MeshPhongMaterial({
-                color: 0x00ffff,
-                emissive: 0x0088ff,
-                shininess: 100
-            });
-            cube = new THREE.Mesh(geometry, material);
-            cube.position.z = 0.5;
-            markerRoot.add(cube);
-
-            // Esfera
-            const sphereGeometry = new THREE.SphereGeometry(0.3, 32, 32);
-            const sphereMaterial = new THREE.MeshPhongMaterial({
-                color: 0x0088ff,
-                emissive: 0x0044ff
-            });
-            const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
-            sphere.position.y = 1.5;
-            markerRoot.add(sphere);
-
-            // Texto 3D
-            const canvas3d = document.createElement('canvas');
-            canvas3d.width = 512;
-            canvas3d.height = 256;
-            const ctx = canvas3d.getContext('2d');
-            ctx.fillStyle = '#00ffff';
-            ctx.font = 'bold 60px Arial';
-            ctx.textAlign = 'center';
-            ctx.fillText('Rtrevelin3dVR', 256, 128);
-
-            const texture = new THREE.CanvasTexture(canvas3d);
-            const textMaterial = new THREE.MeshPhongMaterial({ map: texture });
-            const textGeometry = new THREE.PlaneGeometry(2, 1);
-            const textMesh = new THREE.Mesh(textGeometry, textMaterial);
-            textMesh.position.z = 1.2;
-            textMesh.position.y = 2;
-            markerRoot.add(textMesh);
-
-            // Luz
-            const light = new THREE.PointLight(0xffffff, 1);
-            light.position.set(5, 5, 5);
-            scene.add(light);
-
-            const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
-            scene.add(ambientLight);
-
-            // Animação
-            let frameCount = 0;
-            function animate() {
-                requestAnimationFrame(animate);
-                frameCount++;
-
-                if (cube) {
-                    cube.rotation.x += 0.01;
-                    cube.rotation.y += 0.01;
-                }
-
-                if (sphere) {
-                    sphere.position.y = 1.5 + Math.sin(Date.now() * 0.001) * 0.3;
-                }
-
-                if (arToolkitSource.ready === false) return;
-
-                arToolkitContext.update(arToolkitSource.domElement);
-
-                // Debug a cada 60 frames
-                if (frameCount % 60 === 0) {
-                    if (markerRoot.visible) {
-                        if (!markerDetected) {
-                            markerDetected = true;
-                            markerStatusEl.textContent = '✓ Marcador detectado!';
-                            markerStatusEl.style.color = '#00ff00';
-                            log('Marcador encontrado!');
-                        }
-                    } else {
-                        if (markerDetected) {
-                            markerDetected = false;
-                            markerStatusEl.textContent = 'Procurando marcador...';
-                            markerStatusEl.style.color = '#ffaa00';
-                            log('Procurando marcador...');
-                        }
-                    }
-                }
-
-                renderer.render(scene, camera);
-            }
-
-            animate();
-
-            log('AR iniciado!');
         }
 
         // Voltar para teste

@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebAR - Reflexão Virtual</title>
+    <script src="https://cdn.jsdelivr.net/npm/three@r128/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/ar.js@3.4.5/three.js/ar.js"></script>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        #info {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            color: white;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 14px;
+            z-index: 100;
+            max-width: 300px;
+        }
+        #info h2 {
+            margin: 0 0 10px 0;
+            font-size: 18px;
+        }
+        #info p {
+            margin: 5px 0;
+            line-height: 1.4;
+        }
+    </style>
+</head>
+<body>
+    <div id="info">
+        <h2>🔮 Reflexão Virtual</h2>
+        <p><strong>Aponte para a imagem abaixo</strong></p>
+        <p>Use este QR code ou imagem como marcador:</p>
+        <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/d/d0/QR_code_for_mobile_English_Wikipedia%27s_collection_of_articles_related_to_Indonesia.svg/1200px-QR_code_for_mobile_English_Wikipedia%27s_collection_of_articles_related_to_Indonesia.svg.png" alt="Marcador" style="width: 100px; margin-top: 10px; border-radius: 4px;">
+    </div>
+
+    <script>
+        // Configurar cena Three.js
+        const scene = new THREE.Scene();
+        const camera = new THREE.Camera();
+        scene.add(camera);
+
+        // Renderer
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setClearColor(0x000000, 0);
+        document.body.appendChild(renderer.domElement);
+
+        // Inicializar AR.js
+        const arToolkitSource = new THREEx.ArToolkitSource({
+            sourceType: 'webcam'
+        });
+
+        arToolkitSource.init(() => {
+            setTimeout(() => {
+                onWindowResize();
+            }, 2000);
+        });
+
+        window.addEventListener('resize', onWindowResize);
+
+        function onWindowResize() {
+            arToolkitSource.onResize();
+            arToolkitSource.copySizeTo(renderer.domElement);
+            if (arToolkitContext.arController !== null) {
+                arToolkitSource.copySizeTo(arToolkitContext.arController.canvas);
+            }
+        }
+
+        const arToolkitContext = new THREEx.ArToolkitContext({
+            cameraParametersUrl: 'https://cdn.jsdelivr.net/npm/ar.js@3.4.5/data/data/camera_para.dat',
+            detectionMode: 'mono',
+            sourceWidth: 640,
+            sourceHeight: 480
+        });
+
+        arToolkitContext.init(() => {
+            camera.projectionMatrix.copy(arToolkitContext.getProjectionMatrix());
+        });
+
+        // Criar marcador (usando padrão Hiro padrão do AR.js)
+        const markerRoot = new THREE.Group();
+        scene.add(markerRoot);
+
+        const markerControls = new THREEx.ArMarkerControls(arToolkitContext, markerRoot, {
+            type: 'pattern',
+            patternUrl: 'https://cdn.jsdelivr.net/npm/ar.js@3.4.5/data/data/patt.hiro'
+        });
+
+        // Criar objeto 3D (cubo futurista com gradiente)
+        const geometry = new THREE.BoxGeometry(1, 1, 1);
+        const material = new THREE.MeshPhongMaterial({
+            color: 0x00ffff,
+            emissive: 0x0088ff,
+            shininess: 100
+        });
+        const cube = new THREE.Mesh(geometry, material);
+        cube.position.z = 0.5;
+        markerRoot.add(cube);
+
+        // Adicionar luz
+        const light = new THREE.PointLight(0xffffff, 1);
+        light.position.set(5, 5, 5);
+        scene.add(light);
+
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+        scene.add(ambientLight);
+
+        // Loop de renderização
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // Rotacionar cubo
+            if (cube) {
+                cube.rotation.x += 0.01;
+                cube.rotation.y += 0.01;
+            }
+
+            // Atualizar AR
+            if (arToolkitSource.ready === false) return;
+            arToolkitContext.update(arToolkitSource.domElement);
+
+            renderer.render(scene, camera);
+        }
+
+        animate();
+    </script>
+</body>
+</html>

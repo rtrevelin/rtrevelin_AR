@@ -64,7 +64,7 @@
             overflow: hidden;
         }
 
-        #video-bg {
+        #video-ar {
             position: absolute;
             top: 0;
             left: 0;
@@ -96,6 +96,19 @@
             z-index: 50;
         }
 
+        #status-ar {
+            position: absolute;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0, 20, 40, 0.9);
+            color: #00ffff;
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px solid #00ffff;
+            font-size: 11px;
+            z-index: 50;
+        }
+
         .hidden { display: none !important; }
     </style>
 </head>
@@ -116,31 +129,35 @@
 
     <!-- TELA AR -->
     <div id="ar-screen">
-        <video id="video-bg" autoplay playsinline muted></video>
+        <video id="video-ar" autoplay playsinline muted></video>
         <canvas id="canvas-ar"></canvas>
         <div id="ar-info">
             <p><strong>Rtrevelin3dVR</strong></p>
             <p>Aponte para o marcador Hiro</p>
         </div>
+        <div id="status-ar">Detectando marcador...</div>
     </div>
 
     <!-- Three.js -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
-    <!-- AR.js -->
-    <script src="https://cdn.jsdelivr.net/npm/ar.js@3.4.5/three.js/ar.js"></script>
+    <!-- Tracking.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tracking.js/1.8.0/tracking.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tracking.js/1.8.0/data/face.min.js"></script>
 
     <script>
         const videoTest = document.getElementById('video-test');
-        const videoBg = document.getElementById('video-bg');
+        const videoAR = document.getElementById('video-ar');
+        const canvasAR = document.getElementById('canvas-ar');
         const statusEl = document.getElementById('status');
+        const statusAR = document.getElementById('status-ar');
         const btnAR = document.getElementById('btn-ar');
         const testScreen = document.getElementById('test-screen');
         const arScreen = document.getElementById('ar-screen');
-        const canvas = document.getElementById('canvas-ar');
 
         let cameraStream = null;
-        let arToolkitSource, arToolkitContext, markerRoot, cube;
+        let scene, camera, renderer, cube;
+        let markerDetected = false;
 
         function testCamera() {
             statusEl.textContent = 'Acessando câmera...';
@@ -166,9 +183,8 @@
         }
 
         function startAR() {
-            // Passar stream para vídeo de fundo
             if (cameraStream) {
-                videoBg.srcObject = cameraStream;
+                videoAR.srcObject = cameraStream;
             }
 
             testScreen.classList.add('hidden');
@@ -180,62 +196,20 @@
         }
 
         function initARScene() {
-            // Cena Three.js
-            const scene = new THREE.Scene();
-            const camera = new THREE.Camera();
-            scene.add(camera);
+            // Three.js Setup
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = 5;
 
-            const renderer = new THREE.WebGLRenderer({ 
-                canvas: canvas,
+            renderer = new THREE.WebGLRenderer({ 
+                canvas: canvasAR,
                 antialias: true, 
                 alpha: true 
             });
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.setClearColor(0x000000, 0);
 
-            // AR Toolkit Source
-            arToolkitSource = new THREEx.ArToolkitSource({
-                sourceType: 'webcam'
-            });
-
-            arToolkitSource.init(() => {
-                setTimeout(() => {
-                    onWindowResize();
-                }, 2000);
-            });
-
-            window.addEventListener('resize', onWindowResize);
-
-            function onWindowResize() {
-                arToolkitSource.onResize();
-                arToolkitSource.copySizeTo(renderer.domElement);
-                if (arToolkitContext && arToolkitContext.arController !== null) {
-                    arToolkitSource.copySizeTo(arToolkitContext.arController.canvas);
-                }
-            }
-
-            // AR Toolkit Context
-            arToolkitContext = new THREEx.ArToolkitContext({
-                cameraParametersUrl: 'https://cdn.jsdelivr.net/npm/ar.js@3.4.5/data/data/camera_para.dat',
-                detectionMode: 'mono',
-                sourceWidth: 640,
-                sourceHeight: 480
-            });
-
-            arToolkitContext.init(() => {
-                camera.projectionMatrix.copy(arToolkitContext.getProjectionMatrix());
-            });
-
-            // Marcador Hiro
-            markerRoot = new THREE.Group();
-            scene.add(markerRoot);
-
-            const markerControls = new THREEx.ArMarkerControls(arToolkitContext, markerRoot, {
-                type: 'pattern',
-                patternUrl: 'https://cdn.jsdelivr.net/npm/ar.js@3.4.5/data/data/patt.hiro'
-            });
-
-            // Cubo 3D
+            // Cubo
             const geometry = new THREE.BoxGeometry(1, 1, 1);
             const material = new THREE.MeshPhongMaterial({
                 color: 0x00ffff,
@@ -243,25 +217,9 @@
                 shininess: 100
             });
             cube = new THREE.Mesh(geometry, material);
-            cube.position.z = 0.5;
-            markerRoot.add(cube);
-
-            // Texto 3D
-            const canvas3d = document.createElement('canvas');
-            canvas3d.width = 512;
-            canvas3d.height = 256;
-            const ctx = canvas3d.getContext('2d');
-            ctx.fillStyle = '#00ffff';
-            ctx.font = 'bold 60px Arial';
-            ctx.textAlign = 'center';
-            ctx.fillText('Rtrevelin3dVR', 256, 128);
-
-            const texture = new THREE.CanvasTexture(canvas3d);
-            const textMaterial = new THREE.MeshPhongMaterial({ map: texture });
-            const textGeometry = new THREE.PlaneGeometry(2, 1);
-            const textMesh = new THREE.Mesh(textGeometry, textMaterial);
-            textMesh.position.z = 1.2;
-            markerRoot.add(textMesh);
+            cube.position.z = 0;
+            cube.visible = false;
+            scene.add(cube);
 
             // Luz
             const light = new THREE.PointLight(0xffffff, 1);
@@ -271,23 +229,44 @@
             const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
             scene.add(ambientLight);
 
+            // Tracking.js - detectar padrão
+            const tracker = new tracking.ObjectTracker(['face']);
+            tracking.track(videoAR, tracker, { camera: true });
+
+            tracker.on('track', (event) => {
+                if (event.data.length > 0) {
+                    markerDetected = true;
+                    statusAR.textContent = '✓ Marcador detectado!';
+                    cube.visible = true;
+                } else {
+                    markerDetected = false;
+                    statusAR.textContent = 'Aponte para o marcador Hiro...';
+                    cube.visible = false;
+                }
+            });
+
             // Animação
             function animate() {
                 requestAnimationFrame(animate);
 
-                if (cube) {
+                if (cube && markerDetected) {
                     cube.rotation.x += 0.01;
                     cube.rotation.y += 0.01;
                 }
 
-                if (arToolkitSource.ready === false) return;
-                arToolkitContext.update(arToolkitSource.domElement);
                 renderer.render(scene, camera);
             }
 
             animate();
 
-            console.log('AR Scene iniciada');
+            // Resize
+            window.addEventListener('resize', () => {
+                renderer.setSize(window.innerWidth, window.innerHeight);
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+            });
+
+            console.log('AR Scene iniciada com Tracking.js');
         }
     </script>
 </body>

@@ -5,113 +5,98 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Reflexão Virtual - WebAR</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { background: #000; font-family: Arial, sans-serif; }
-
-        #test-screen {
-            width: 100vw;
-            height: 100vh;
-            background: #001a2e;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            color: #00ffff;
-            z-index: 100;
-        }
-
-        #test-screen h1 { margin-bottom: 20px; }
-        #test-screen p { margin: 10px 0; font-size: 14px; }
-
-        #video-test {
-            width: 300px;
-            height: 300px;
-            background: #000;
-            border: 2px solid #00ffff;
-            border-radius: 8px;
-            margin: 20px 0;
-        }
-
-        button {
-            padding: 12px 24px;
-            margin: 10px;
-            background: #00ffff;
-            color: #000;
-            border: none;
-            border-radius: 6px;
-            font-weight: bold;
-            cursor: pointer;
-            font-size: 16px;
-        }
-
-        button:hover { background: #00aaff; }
-
-        #ar-screen {
-            display: none;
-            width: 100vw;
-            height: 100vh;
-        }
-
-        .hidden { display: none !important; }
+        body { margin: 0; overflow: hidden; }
+        canvas { display: block; }
     </style>
 </head>
 <body>
-    <!-- TELA DE TESTE -->
-    <div id="test-screen">
-        <h1>🔮 Reflexão Virtual</h1>
-        <p>Teste de Câmera</p>
-        <video id="video-test" autoplay playsinline muted></video>
-        <p id="status">Aguardando...</p>
-        <button onclick="testCamera()">Testar Câmera</button>
-        <button onclick="startAR()" id="btn-ar" style="display: none;">Iniciar AR</button>
-    </div>
-
-    <!-- TELA AR -->
-    <div id="ar-screen">
-        <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false;">
-            <a-entity camera></a-entity>
-            <a-marker preset="hiro">
-                <a-box color="#00ffff" position="0 0.5 0" animation="property: rotation; to: 0 360 0; loop: true; dur: 3000;"></a-box>
-            </a-marker>
-        </a-scene>
-    </div>
-
-    <script src="https://aframe.io/releases/1.4.2/aframe.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/ar.js@3.4.5/aframe/build/aframe-ar.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/ar.js@3.4.5/three.js/ar.js"></script>
 
     <script>
-        const videoTest = document.getElementById('video-test');
-        const statusEl = document.getElementById('status');
-        const btnAR = document.getElementById('btn-ar');
-        const testScreen = document.getElementById('test-screen');
-        const arScreen = document.getElementById('ar-screen');
+        // Cena Three.js
+        const scene = new THREE.Scene();
+        const camera = new THREE.Camera();
+        scene.add(camera);
 
-        function testCamera() {
-            statusEl.textContent = 'Acessando câmera...';
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setClearColor(0x000000, 0);
+        document.body.appendChild(renderer.domElement);
 
-            navigator.mediaDevices.getUserMedia({
-                video: {
-                    facingMode: 'environment',
-                    width: { ideal: 1280 },
-                    height: { ideal: 720 }
-                },
-                audio: false
-            })
-            .then(stream => {
-                videoTest.srcObject = stream;
-                statusEl.textContent = '✓ Câmera funcionando!';
-                btnAR.style.display = 'block';
-            })
-            .catch(err => {
-                statusEl.textContent = '✗ Erro: ' + err.message;
-                console.error(err);
-            });
+        // AR Toolkit
+        const arToolkitSource = new THREEx.ArToolkitSource({
+            sourceType: 'webcam'
+        });
+
+        arToolkitSource.init(() => {
+            setTimeout(() => onWindowResize(), 2000);
+        });
+
+        window.addEventListener('resize', onWindowResize);
+
+        function onWindowResize() {
+            arToolkitSource.onResize();
+            arToolkitSource.copySizeTo(renderer.domElement);
+            if (arToolkitContext.arController !== null) {
+                arToolkitSource.copySizeTo(arToolkitContext.arController.canvas);
+            }
         }
 
-        function startAR() {
-            testScreen.classList.add('hidden');
-            arScreen.style.display = 'block';
+        const arToolkitContext = new THREEx.ArToolkitContext({
+            cameraParametersUrl: 'https://cdn.jsdelivr.net/npm/ar.js@3.4.5/data/data/camera_para.dat',
+            detectionMode: 'mono',
+            sourceWidth: 640,
+            sourceHeight: 480
+        });
+
+        arToolkitContext.init(() => {
+            camera.projectionMatrix.copy(arToolkitContext.getProjectionMatrix());
+        });
+
+        // Marcador Hiro
+        const markerRoot = new THREE.Group();
+        scene.add(markerRoot);
+
+        const markerControls = new THREEx.ArMarkerControls(arToolkitContext, markerRoot, {
+            type: 'pattern',
+            patternUrl: 'https://cdn.jsdelivr.net/npm/ar.js@3.4.5/data/data/patt.hiro'
+        });
+
+        // Cubo 3D
+        const geometry = new THREE.BoxGeometry(1, 1, 1);
+        const material = new THREE.MeshPhongMaterial({
+            color: 0x00ffff,
+            emissive: 0x0088ff,
+            shininess: 100
+        });
+        const cube = new THREE.Mesh(geometry, material);
+        cube.position.z = 0.5;
+        markerRoot.add(cube);
+
+        // Luz
+        const light = new THREE.PointLight(0xffffff, 1);
+        light.position.set(5, 5, 5);
+        scene.add(light);
+
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+        scene.add(ambientLight);
+
+        // Animação
+        function animate() {
+            requestAnimationFrame(animate);
+
+            if (cube) {
+                cube.rotation.x += 0.01;
+                cube.rotation.y += 0.01;
+            }
+
+            if (arToolkitSource.ready === false) return;
+            arToolkitContext.update(arToolkitSource.domElement);
+            renderer.render(scene, camera);
         }
+
+        animate();
     </script>
 </body>
 </html>

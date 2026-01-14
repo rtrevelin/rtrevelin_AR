@@ -5,27 +5,36 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Reflexão Virtual - WebAR</title>
     <style>
-        body { margin: 0; overflow: hidden; background: #000; }
-        #loading {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { background: #000; font-family: Arial, sans-serif; }
+
+        #test-screen {
+            width: 100vw;
+            height: 100vh;
             background: #001a2e;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
             color: #00ffff;
-            font-family: Arial, sans-serif;
-            z-index: 1000;
+            z-index: 100;
         }
-        #loading h2 { margin: 0 0 20px 0; }
-        #loading p { margin: 10px 0; font-size: 14px; }
-        #loading button {
-            margin-top: 20px;
+
+        #test-screen h1 { margin-bottom: 20px; }
+        #test-screen p { margin: 10px 0; font-size: 14px; }
+
+        #video-test {
+            width: 300px;
+            height: 300px;
+            background: #000;
+            border: 2px solid #00ffff;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+
+        button {
             padding: 12px 24px;
+            margin: 10px;
             background: #00ffff;
             color: #000;
             border: none;
@@ -34,39 +43,35 @@
             cursor: pointer;
             font-size: 16px;
         }
-        #loading button:hover { background: #00aaff; }
-        #status { font-size: 12px; margin-top: 20px; color: #00aaff; }
-        #video-stream { display: none; }
-        #ar-container { display: none; width: 100%; height: 100%; }
+
+        button:hover { background: #00aaff; }
+
+        #ar-screen {
+            display: none;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        .hidden { display: none !important; }
     </style>
 </head>
 <body>
-    <video id="video-stream" autoplay playsinline muted></video>
-
-    <div id="loading">
-        <h2>🔮 Reflexão Virtual</h2>
-        <p>WebAR - Aponte para o marcador Hiro</p>
-        <button onclick="startAR()">Iniciar Câmera</button>
-        <div id="status">Aguardando...</div>
+    <!-- TELA DE TESTE -->
+    <div id="test-screen">
+        <h1>🔮 Reflexão Virtual</h1>
+        <p>Teste de Câmera</p>
+        <video id="video-test" autoplay playsinline muted></video>
+        <p id="status">Aguardando...</p>
+        <button onclick="testCamera()">Testar Câmera</button>
+        <button onclick="startAR()" id="btn-ar" style="display: none;">Iniciar AR</button>
     </div>
 
-    <div id="ar-container">
+    <!-- TELA AR -->
+    <div id="ar-screen">
         <a-scene embedded arjs="sourceType: webcam; debugUIEnabled: false;">
             <a-entity camera></a-entity>
             <a-marker preset="hiro">
-                <a-box 
-                    color="#00ffff" 
-                    position="0 0.5 0" 
-                    scale="0.8 0.8 0.8"
-                    animation="property: rotation; to: 0 360 0; loop: true; dur: 3000;">
-                </a-box>
-                <a-text 
-                    value="REFLEXÃO VIRTUAL" 
-                    position="0 1.2 0" 
-                    scale="0.5 0.5 0.5"
-                    color="#00ffff"
-                    align="center">
-                </a-text>
+                <a-box color="#00ffff" position="0 0.5 0" animation="property: rotation; to: 0 360 0; loop: true; dur: 3000;"></a-box>
             </a-marker>
         </a-scene>
     </div>
@@ -75,46 +80,37 @@
     <script src="https://cdn.jsdelivr.net/npm/ar.js@3.4.5/aframe/build/aframe-ar.js"></script>
 
     <script>
+        const videoTest = document.getElementById('video-test');
         const statusEl = document.getElementById('status');
-        const loadingEl = document.getElementById('loading');
-        const arContainer = document.getElementById('ar-container');
-        const videoStream = document.getElementById('video-stream');
+        const btnAR = document.getElementById('btn-ar');
+        const testScreen = document.getElementById('test-screen');
+        const arScreen = document.getElementById('ar-screen');
 
-        function updateStatus(msg) {
-            statusEl.textContent = msg;
-        }
+        function testCamera() {
+            statusEl.textContent = 'Acessando câmera...';
 
-        function startAR() {
-            updateStatus('Acessando câmera...');
-
-            const constraints = {
+            navigator.mediaDevices.getUserMedia({
                 video: {
                     facingMode: 'environment',
                     width: { ideal: 1280 },
                     height: { ideal: 720 }
                 },
                 audio: false
-            };
+            })
+            .then(stream => {
+                videoTest.srcObject = stream;
+                statusEl.textContent = '✓ Câmera funcionando!';
+                btnAR.style.display = 'block';
+            })
+            .catch(err => {
+                statusEl.textContent = '✗ Erro: ' + err.message;
+                console.error(err);
+            });
+        }
 
-            navigator.mediaDevices.getUserMedia(constraints)
-                .then(stream => {
-                    updateStatus('✓ Câmera ativada');
-
-                    // Atribuir stream ao vídeo
-                    videoStream.srcObject = stream;
-                    videoStream.play();
-
-                    // Aguardar um pouco para garantir que o vídeo está pronto
-                    setTimeout(() => {
-                        loadingEl.style.display = 'none';
-                        arContainer.style.display = 'block';
-                        updateStatus('AR carregado');
-                    }, 1500);
-                })
-                .catch(err => {
-                    updateStatus('✗ Erro: ' + err.message);
-                    console.error('Erro ao acessar câmera:', err);
-                });
+        function startAR() {
+            testScreen.classList.add('hidden');
+            arScreen.style.display = 'block';
         }
     </script>
 </body>

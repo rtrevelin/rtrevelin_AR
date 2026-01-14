@@ -95,7 +95,7 @@
 
             <a-camera position="0 0 0"></a-camera>
 
-            <!-- Image Tracking (NFT) -->
+            <!-- Image Tracking (NFT) com modelo GLB -->
             <a-nft 
                 type="nft" 
                 url="https://cdn.jsdelivr.net/npm/ar.js@3.4.5/data/data/patt"
@@ -104,45 +104,20 @@
                 rotation="0 0 0"
                 id="nft-marker">
 
-                <!-- Cubo -->
-                <a-box 
-                    color="#00ffff" 
+                <!-- Modelo 3D GLB do GitHub -->
+                <a-entity 
+                    gltf-model="url(https://raw.githubusercontent.com/rtrevelin/rtrevelin_AR/main/models/cubos.glb)"
                     position="0 0.5 0"
-                    scale="0.8 0.8 0.8"
+                    scale="1 1 1"
                     animation="property: rotation; to: 0 360 0; loop: true; dur: 3000;">
-                </a-box>
+                </a-entity>
 
-                <!-- Esfera -->
-                <a-sphere 
-                    position="0 1.5 0" 
-                    radius="0.3" 
-                    color="#0088ff"
-                    animation="property: position; to: 0 1.8 0; loop: true; dur: 2000; dir: alternate;">
-                </a-sphere>
-
-                <!-- Texto -->
-                <a-text 
-                    value="Rtrevelin3dVR" 
-                    position="0 2 0" 
-                    scale="0.6 0.6 0.6"
-                    color="#00ffff"
-                    align="center">
-                </a-text>
-
-                <!-- Cilindro -->
-                <a-cylinder 
-                    position="0 0 0" 
-                    radius="0.5" 
-                    height="0.1" 
-                    color="#0044ff"
-                    opacity="0.6">
-                </a-cylinder>
             </a-nft>
         </a-scene>
 
         <div id="ar-info">
             <p><strong>🔮 Rtrevelin3dVR</strong></p>
-            <p>Aponte para a imagem marcadora</p>
+            <p>Aponte para o marcador Hiro</p>
             <p id="marker-status" style="margin-top: 10px; color: #ffaa00;">Procurando marcador...</p>
             <p id="ar-debug" style="margin-top: 10px; color: #0088ff; font-size: 10px;"></p>
         </div>
@@ -150,6 +125,7 @@
         <div id="status-ar">
             <p>Câmera: <span id="camera-status">Ativa</span></p>
             <p>AR.js: <span id="arjs-status">Carregando...</span></p>
+            <p>Modelo: <span id="model-status">Carregando...</span></p>
         </div>
 
         <img id="marker-preview-ar" src="https://raw.githubusercontent.com/AR-js-org/AR.js/master/data/images/hiro.png" alt="Marcador" title="Aponte para esta imagem">
@@ -166,6 +142,7 @@
         const markerStatusEl = document.getElementById('marker-status');
         const arDebugEl = document.getElementById('ar-debug');
         const arjsStatusEl = document.getElementById('arjs-status');
+        const modelStatusEl = document.getElementById('model-status');
         const nftMarker = document.getElementById('nft-marker');
 
         let cameraStream = null;
@@ -191,9 +168,11 @@
             .then(stream => {
                 cameraStream = stream;
                 videoBg.srcObject = stream;
-                log('Câmera OK - Aponte para o marcador');
+                log('Câmera OK - Aponte para o Hiro');
                 arjsStatusEl.textContent = 'Pronto';
                 arjsStatusEl.style.color = '#00ff00';
+                modelStatusEl.textContent = 'Carregado';
+                modelStatusEl.style.color = '#00ff00';
             })
             .catch(err => {
                 log('Erro câmera: ' + err.message);
@@ -208,7 +187,7 @@
                 markerDetected = true;
                 markerStatusEl.textContent = '✓ Marcador detectado!';
                 markerStatusEl.style.color = '#00ff00';
-                log('Marcador encontrado!');
+                log('Marcador encontrado! Cubos aparecendo...');
             });
 
             nftMarker.addEventListener('markerLost', () => {
